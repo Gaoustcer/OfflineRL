@@ -1,7 +1,7 @@
 import gym
 
 import numpy as np
-
+from torch.distributions import Categorical
 def _connect():
     env = gym.make("CartPole-v0")
     currentstate = []
