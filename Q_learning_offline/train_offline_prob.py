@@ -16,7 +16,7 @@ class TrainingAgent(object):
         self.device = torch.device('cuda:0')
         self.Qnet = Net().to(self.device)
         self.TargetQnet = Net().to(self.device)
-        self.optimizer = torch.optim.Adam(self.Qnet.parameters(), lr = 4e-4)
+        self.optimizer = torch.optim.Adam(self.Qnet.parameters(), lr = 5e-5)
         self.epoch = 256
         self.validenv = gym.make(ENV)
         self.vaildationtime = 16
@@ -25,16 +25,17 @@ class TrainingAgent(object):
 
     def _trainanepoch(self):
         from tqdm import tqdm
-        for currentstate,action,reward,nextstate in tqdm(self.mydataloader):
+        for currentstate,action,reward,nextstate in (self.mydataloader):
             values = self.Qnet(currentstate)
             # (s,r,a,s')
             # Q(s,a) - \max_{a'} Q(s',a')+r
+            self.optimizer.zero_grad()
             action = action.cuda()
             currentQvalues = torch.gather(values,-1,action.unsqueeze(-1)).squeeze()
             nextQvalyes = torch.max(self.TargetQnet(nextstate),-1)[0].detach() + reward.to(torch.float32).cuda()
             TDlossfunction = torch.nn.MSELoss()
             TDloss = TDlossfunction(currentQvalues,nextQvalyes)
-            self.optimizer.zero_grad()
+            # self.optimizer.zero_grad()
             TDloss.backward()
             self.optimizer.step()
 
@@ -54,11 +55,19 @@ class TrainingAgent(object):
                 reward += r
         return reward/self.vaildationtime
 
+    def _random(self):
+        from torch.utils.tensorboard import SummaryWriter
+        writer = SummaryWriter("../log/randombaseline")
+        from tqdm import tqdm
+        for epoch in tqdm(range(self.epoch)):
+            reward = self.vaildate()
+            writer.add_scalar('reward',reward,epoch)
 
     def _train(self):
         from torch.utils.tensorboard import SummaryWriter
         writer = SummaryWriter('../log/offlineQlearning1024')
-        for epoch in range(self.epoch):
+        from tqdm import tqdm
+        for epoch in tqdm(range(self.epoch)):
             self._trainanepoch()
             if epoch % 8 == 0:
                 self.TargetQnet.load_state_dict(self.Qnet.state_dict())
@@ -69,4 +78,4 @@ class TrainingAgent(object):
 if __name__ == "__main__":
     agent = TrainingAgent()
     agent._train()    
-    
+    # agent._random()    
