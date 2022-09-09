@@ -36,6 +36,8 @@ class TrainingAgent(object):
             nextQvalyes = torch.max(self.TargetQnet(nextstate),-1)[0].detach() + reward.to(torch.float32).cuda()
             TDlossfunction = torch.nn.MSELoss()
             TDloss = TDlossfunction(currentQvalues,nextQvalyes)
+            self.writer.add_scalar('TDloss',TDloss,self.lossindex)
+            self.lossindex += 1
             # self.optimizer.zero_grad()
             TDloss.backward()
             self.optimizer.step()
